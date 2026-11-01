@@ -62,4 +62,5 @@ This repo is public so every org repo can call it; it holds no secrets.
 
 1. **Repo secret `PACKAGES_READ_TOKEN`** in every repo that installs `@comfmunity` packages: a classic PAT with `read:packages` (fine-grained tokens don't work with the npm registry). It has to be a repo secret because private repos on the Free plan can't read organization secrets.
 2. **Actions access for publishing**: on each package's settings page (Manage Actions access), give its source repo the Write role so `GITHUB_TOKEN` can publish.
-3. **Allow Actions to open PRs**: org and repo Settings → Actions → General → Workflow permissions → *Allow GitHub Actions to create and approve pull requests*.
+3. **Repo Dependabot secret `DEPENDABOT_GITHUB_PACKAGES_TOKEN`** (same token, `gh secret set -a dependabot`) so Dependabot can see `@comfmunity` releases. The org-level one doesn't reach private repos on Free.
+4. **Allow Actions to open PRs**: org and repo Settings → Actions → General → Workflow permissions → *Allow GitHub Actions to create and approve pull requests*.

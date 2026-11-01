@@ -1,0 +1,52 @@
+name: Latest dependencies
+
+on:
+  workflow_call:
+    inputs:
+      run-build:
+        description: Run `npm run build` (off for apps whose build needs live services)
+        type: boolean
+        default: true
+    secrets:
+      PACKAGES_READ_TOKEN:
+        description: Token with read:packages for the @comfmunity scope on GitHub Packages
+        required: false
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  check:
+    name: Typecheck against latest @comfmunity packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN || github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://npm.pkg.github.com
+          scope: "@comfmunity"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Upgrade @comfmunity packages to latest
+        run: |
+          pkgs=$(node -p "const p = require('./package.json'); Object.keys({ ...p.dependencies, ...p.devDependencies }).filter(n => n.startsWith('@comfmunity/')).map(n => n + '@latest').join(' ')")
+          echo "Installing: $pkgs"
+          if [ -n "$pkgs" ]; then npm install --no-save $pkgs; fi
+
+      - name: Typecheck
+        run: npm run typecheck --if-present
+
+      - name: Build
+        if: inputs.run-build
+        run: npm run build --if-present
