@@ -1,0 +1,71 @@
+name: Node CI
+
+on:
+  workflow_call:
+    inputs:
+      node-versions:
+        description: JSON array of Node versions to test against
+        type: string
+        default: '["24"]'
+      is-library:
+        description: Also verify the published tarball with `npm pack --dry-run`
+        type: boolean
+        default: false
+      run-build:
+        description: Run `npm run build` (off for apps whose build needs live services)
+        type: boolean
+        default: true
+    secrets:
+      PACKAGES_READ_TOKEN:
+        description: Token with read:packages for the @comfmunity scope on GitHub Packages
+        required: false
+      NPM_GITHUB_TOKEN:
+        description: Legacy name for PACKAGES_READ_TOKEN
+        required: false
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  check:
+    name: Lint, typecheck, build (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ${{ fromJSON(inputs.node-versions) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          registry-url: https://npm.pkg.github.com
+          scope: "@comfmunity"
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN || secrets.NPM_GITHUB_TOKEN || github.token }}
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Typecheck
+        run: npm run typecheck --if-present
+
+      - name: Build
+        if: inputs.run-build
+        run: npm run build --if-present
+
+      - name: Test
+        run: npm test --if-present
+
+      - name: Verify package contents
+        if: inputs.is-library
+        run: npm pack --dry-run
